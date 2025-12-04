@@ -1,0 +1,347 @@
+/* =========================================
+   1. DESIGN TOKENS (Dari Figma Anda)
+   ========================================= */
+:root {
+  --font-size: 16px;
+  /* Base Colors */
+  --background: #fafafa;
+  --foreground: oklch(0.145 0 0);
+
+  /* Card */
+  --card: #ffffff;
+  --card-foreground: oklch(0.145 0 0);
+
+  /* Popover */
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+
+  /* Primary (Main Brand) */
+  --primary: #7c3aed; /* Ungu Terang */
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary */
+  --secondary: oklch(0.95 0.0058 264.53);
+  --secondary-foreground: #030213;
+
+  /* Muted */
+  --muted: #ececf0;
+  --muted-foreground: #717182;
+
+  /* Accent */
+  --accent: #06b6d4;
+  --accent-foreground: #ffffff;
+
+  /* Destructive */
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+
+  /* Border & Input */
+  --border: rgba(0, 0, 0, 0.1);
+  --input: transparent;
+  --input-background: #f3f3f5;
+  --switch-background: #cbced4;
+
+  /* Typography */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Charts (Kita pakai untuk Ranking Badge) */
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116); /* Merah/Oranye */
+  --chart-2: oklch(0.6 0.118 184.704); /* Cyan/Teal */
+  --chart-3: oklch(0.398 0.07 227.392); /* Biru */
+  --chart-4: oklch(0.828 0.189 84.429); /* Kuning/Hijau Muda */
+  --chart-5: oklch(0.769 0.188 70.08); /* Oranye Muda */
+
+  --radius: 1rem;
+
+  /* Sidebar Specific (Penting untuk UI Admin) */
+  --sidebar: #1e1b4b; /* Ungu Gelap */
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: #312e81;
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Dark Mode Support (Opsional, jika nanti diaktifkan) */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --border: oklch(0.269 0 0);
+
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-accent: oklch(0.269 0 0);
+}
+
+/* =========================================
+     2. BASE STYLES & TYPOGRAPHY
+     ========================================= */
+html {
+  font-size: var(--font-size);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: "Poppins", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+button,
+label {
+  font-weight: var(--font-weight-medium);
+}
+
+p,
+input,
+td {
+  font-weight: var(--font-weight-normal);
+}
+
+a {
+  text-decoration: none;
+}
+
+/* =========================================
+     3. COMPONENT: SIDEBAR
+     Menggunakan variabel --sidebar dari Figma
+     ========================================= */
+/* --- Sidebar Specific Styles --- */
+.sidebar {
+  background: #1e1b4b; /* Dark Blue Background */
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 15px;
+}
+
+/* 1. Logo Area */
+/* Ganti style .logo-glow yang lama dengan ini */
+
+.custom-logo {
+  width: 45px; /* Ukuran lebar logo */
+  height: 45px; /* Ukuran tinggi logo */
+  object-fit: contain; /* Agar gambar tidak gepeng/terpotong */
+  border-radius: 12px; /* Membuat sudut melengkung (opsional, jika logo kotak) */
+
+  /* Efek bayangan bersinar (Glow) ungu */
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+  transition: transform 0.3s ease;
+}
+
+.custom-logo:hover {
+  transform: scale(1.05); /* Efek membesar sedikit saat disentuh mouse */
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+}
+
+/* 2. User Profile Area */
+.user-profile-box {
+  padding: 15px 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.avatar-circle {
+  width: 45px;
+  height: 45px;
+  background: linear-gradient(135deg, #a855f7 0%, #06b6d4 100%);
+  border-radius: 50%;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* 3. Navigation Links */
+.nav-link-custom {
+  color: rgba(255, 255, 255, 0.7);
+  padding: 12px 15px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s;
+  font-weight: 400;
+}
+
+.nav-link-custom:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link-custom i {
+  font-size: 1.1rem;
+}
+
+/* Active State (Gradient Purple/Blue) */
+.nav-link-custom.active {
+  background: linear-gradient(90deg, #9333ea 0%, #06b6d4 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+}
+
+/* Special Button: Hasil Konsensus */
+.nav-link-special {
+  border: 1px solid #d97706; /* Gold border */
+  color: #fbbf24;
+  background: rgba(217, 119, 6, 0.1);
+}
+.nav-link-special.active {
+  background: #d97706 !important;
+  color: white !important;
+}
+
+/* =========================================
+     4. COMPONENT: CARDS
+     Menggunakan variabel --card dan --radius
+     ========================================= */
+.card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  margin-bottom: 24px;
+  overflow: hidden; /* Agar radius anak elemen tidak bocor */
+}
+
+.card-header {
+  background-color: var(--card); /* Header menyatu dengan card */
+  border-bottom: 1px solid var(--border);
+  padding: 20px;
+  font-weight: var(--font-weight-medium);
+}
+
+.card-body {
+  padding: 24px;
+}
+
+/* =========================================
+     5. COMPONENT: TABLES & INPUTS
+     ========================================= */
+.table thead th {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+  border-bottom: 2px solid var(--border);
+  font-weight: var(--font-weight-medium);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.table td {
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.form-control,
+.form-select {
+  background-color: var(--input-background);
+  border: 1px solid var(--input); /* Transparent border default from Figma */
+  color: var(--foreground);
+  border-radius: calc(var(--radius) - 6px);
+  padding: 10px 15px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--card);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1); /* Shadow ungu transparan */
+}
+
+/* =========================================
+     6. COMPONENT: BUTTONS & BADGES
+     ========================================= */
+/* Tombol Utama (Ungu Figma) */
+.btn-primary-custom,
+.btn-primary {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-radius: calc(var(--radius) - 4px);
+  padding: 10px 24px;
+  font-weight: var(--font-weight-medium);
+  transition: filter 0.2s;
+}
+
+.btn-primary-custom:hover {
+  filter: brightness(110%);
+}
+
+/* Tombol Aksi Tabel (Edit/Delete) */
+.btn-sm {
+  border-radius: calc(var(--radius) - 8px);
+  padding: 5px 10px;
+}
+
+/* Ranking Badge (Menggunakan warna Chart dari Figma) */
+.rank-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%; /* Bulat */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Mapping Warna Chart Figma ke Ranking */
+.rank-1 {
+  background-color: var(--chart-1);
+} /* Merah/Oranye - Paling Mencolok */
+.rank-2 {
+  background-color: var(--chart-2);
+} /* Teal */
+.rank-3 {
+  background-color: var(--chart-3);
+} /* Biru */
+.rank-low {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* Alert / Status Badge */
+.badge {
+  padding: 8px 12px;
+  border-radius: calc(var(--radius) - 4px);
+  font-weight: var(--font-weight-medium);
+}
+.bg-success {
+  background-color: var(--chart-2) !important;
+  color: white;
+}
+.bg-danger {
+  background-color: var(--destructive) !important;
+  color: var(--destructive-foreground);
+}
+.bg-secondary {
+  background-color: var(--muted) !important;
+  color: var(--muted-foreground);
+}
