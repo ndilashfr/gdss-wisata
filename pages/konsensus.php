@@ -1,26 +1,22 @@
 <?php
-// --- 1. LOGIKA PHP: HITUNG BORDA OTOMATIS ---
+// --- 1. LOGIKA PHP: HITUNG & SORTING DI AWAL ---
 
-// A. Cek Status Penilaian Semua DM
-$total_dm_required = 3; // Kadispar, PHRI, Akademisi
+// A. Cek Status Penilaian
+$total_dm_required = 3; 
 $qCek = mysqli_query($conn, "SELECT DISTINCT id_user FROM penilaian");
 $dm_selesai = mysqli_num_rows($qCek);
 $is_completed = ($dm_selesai >= $total_dm_required);
 
-// B. Fungsi Helper: Hitung Ranking TOPSIS per Role (Tanpa merubah file lain)
+// B. Fungsi Helper TOPSIS
 function getTopsisRanking($conn, $role) {
-    // 1. Ambil User ID berdasarkan Role
     $qUser = mysqli_query($conn, "SELECT id_user FROM users WHERE role='$role'");
     $uData = mysqli_fetch_assoc($qUser);
-    if(!$uData) return []; // User tidak ditemukan
+    if(!$uData) return []; 
     $id_user = $uData['id_user'];
 
-    // 2. Cek apakah user ini sudah menilai
     $cekNilai = mysqli_query($conn, "SELECT * FROM penilaian WHERE id_user='$id_user'");
     if(mysqli_num_rows($cekNilai) == 0) return [];
 
-    // 3. Hitung TOPSIS (Versi Ringkas)
-    // Ambil data matriks & bobot
     $kriteria = []; $qK = mysqli_query($conn, "SELECT * FROM kriteria");
     while($r=mysqli_fetch_assoc($qK)) $kriteria[$r['id_kriteria']]=$r;
     
@@ -33,13 +29,12 @@ function getTopsisRanking($conn, $role) {
     $bobot=[]; $qB = mysqli_query($conn, "SELECT * FROM bobot_user WHERE id_user='$id_user'");
     while($r=mysqli_fetch_assoc($qB)) $bobot[$r['id_kriteria']]=$r['nilai_bobot'];
 
-    // Hitung V
+    // Hitung TOPSIS
     $pembagi=[]; 
     foreach($kriteria as $idk=>$k){
         $sum=0; foreach($alternatif as $ida=>$a) $sum+=pow($matriks_x[$ida][$idk]??0, 2);
         $pembagi[$idk]=sqrt($sum);
     }
-    
     $matriks_y=[];
     foreach($alternatif as $ida=>$a){
         foreach($kriteria as $idk=>$k){
@@ -47,14 +42,12 @@ function getTopsisRanking($conn, $role) {
             $matriks_y[$ida][$idk] = $r * ($bobot[$idk]??0);
         }
     }
-
     $sol_plus=[]; $sol_min=[];
     foreach($kriteria as $idk=>$k){
         $col = array_column($matriks_y, $idk);
         if($k['atribut']=='benefit'){ $sol_plus[$idk]=max($col); $sol_min[$idk]=min($col); }
         else { $sol_plus[$idk]=min($col); $sol_min[$idk]=max($col); }
     }
-
     $hasil=[];
     foreach($alternatif as $ida=>$a){
         $dp=0; $dm=0;
@@ -65,33 +58,49 @@ function getTopsisRanking($conn, $role) {
         $v = (sqrt($dm)+sqrt($dp)>0) ? sqrt($dm)/(sqrt($dm)+sqrt($dp)) : 0;
         $hasil[$ida] = $v;
     }
-    
-    // Sort High to Low (Ranking)
     arsort($hasil); 
-    
-    // Convert Score to Rank Number (1, 2, 3...)
-    $ranked_list = [];
-    $rank = 1;
-    foreach($hasil as $id_alt => $score){
-        $ranked_list[$id_alt] = $rank++; // Simpan ID Alternatif => Rankingnya
-    }
-    
+    $ranked_list = []; $rank = 1;
+    foreach($hasil as $id_alt => $score){ $ranked_list[$id_alt] = $rank++; }
     return $ranked_list;
 }
 
-// C. Ambil Data Ranking dari 3 DM
+// C. Ambil Data Ranking
 $rank_dm1 = getTopsisRanking($conn, 'kadispar');
 $rank_dm2 = getTopsisRanking($conn, 'phri');
 $rank_dm3 = getTopsisRanking($conn, 'akademisi');
 
-// Ambil Data Alternatif untuk Display
+// D. PROSES DATA
 $data_alternatif = [];
 $qAlt = mysqli_query($conn, "SELECT * FROM alternatif");
-while($row = mysqli_fetch_assoc($qAlt)) { $data_alternatif[$row['id_alternatif']] = $row; }
-$jumlah_alternatif = count($data_alternatif);
+$jumlah_alternatif = mysqli_num_rows($qAlt);
 
+while($row = mysqli_fetch_assoc($qAlt)) {
+    $id = $row['id_alternatif'];
+    
+    // Hitung Poin
+    $p1 = isset($rank_dm1[$id]) ? ($jumlah_alternatif - $rank_dm1[$id] + 1) : 0;
+    $p2 = isset($rank_dm2[$id]) ? ($jumlah_alternatif - $rank_dm2[$id] + 1) : 0;
+    $p3 = isset($rank_dm3[$id]) ? ($jumlah_alternatif - $rank_dm3[$id] + 1) : 0;
+    $total = $p1 + $p2 + $p3;
+
+    $row['poin_dm1'] = $p1;
+    $row['poin_dm2'] = $p2;
+    $row['poin_dm3'] = $p3;
+    $row['total_poin'] = $total;
+    
+    $data_alternatif[$id] = $row;
+}
+
+// Sorting
+uasort($data_alternatif, function($a, $b) {
+    return $b['total_poin'] <=> $a['total_poin'];
+});
+
+// --- E. CEK HAK AKSES ---
+$role_sekarang = strtolower($_SESSION['role'] ?? ''); 
+// Hanya Admin & Kadispar yang punya akses "Eksekutif" (Tombol & Hasil Akhir)
+$is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
 ?>
-
 <style>
     /* Style Khusus Header Ungu Soft */
     .header-soft-purple {
@@ -194,7 +203,6 @@ $jumlah_alternatif = count($data_alternatif);
         font-size: 0.85rem;
     }
 </style>
-
 <div class="hero-consensus">
     <div style="position: relative; z-index: 2;">
         <h3 class="fw-bold mb-1"><i class="bi bi-people-fill me-2"></i> Hasil Keputusan Kelompok</h3>
@@ -208,24 +216,38 @@ $jumlah_alternatif = count($data_alternatif);
             <div class="icon-waiting"><i class="bi bi-exclamation-lg"></i></div>
             <div>
                 <h6 class="fw-light mb-1">Menunggu penilaian dari semua DM</h6>
-                <small>Konsensus baru dapat dihitung setelah 3 DM (Kadispar, PHRI, Akademisi) menyelesaikan penilaian.</small>
+                <small>Konsensus baru dapat dihitung setelah 3 DM selesai.</small>
             </div>
         </div>
-        <button class="btn btn-secondary" disabled>Jalankan Konsensus</button>
+        
+        <?php if($is_vip): ?>
+            <button class="btn btn-secondary" disabled>Jalankan Konsensus</button>
+        <?php endif; ?>
     </div>
+
 <?php else: ?>
-    <div class="alert alert-success d-flex align-items-center mb-4 border-0 shadow-sm" role="alert">
-        <i class="bi bi-check-circle-fill fs-4 me-3 text-success"></i>
-        <div>
-            <strong>Semua DM telah menilai!</strong><br>
-            Berikut adalah hasil perhitungan metode Borda Count.
+    <?php if($is_vip): ?>
+        <div class="alert alert-success d-flex align-items-center mb-4 border-0 shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill fs-4 me-3 text-success"></i>
+            <div>
+                <strong>Semua DM telah menilai!</strong><br>
+                Perhitungan Borda Count telah dijalankan. Lihat hasil di bawah.
+            </div>
         </div>
-    </div>
+    <?php else: ?>
+        <div class="alert alert-info-custom d-flex align-items-center mb-4 border-0 shadow-sm" role="alert">
+            <i class="bi bi-info-circle-fill fs-4 me-3 text-primary"></i>
+            <div>
+                <strong>Penilaian Selesai.</strong><br>
+                Hasil konsensus akhir sedang ditinjau oleh Kadispar & Admin.
+            </div>
+        </div>
+    <?php endif; ?>
+
 <?php endif; ?>
 
 
 <div class="card mb-4 border-0 shadow-sm">
-    
     <div class="header-soft-purple">
         <i class="bi bi-people"></i> <span>Perbandingan Ranking Individual</span>
     </div>
@@ -242,22 +264,17 @@ $jumlah_alternatif = count($data_alternatif);
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach($data_alternatif as $id => $alt): 
+                    <?php 
+                    foreach($data_alternatif as $id => $alt): 
                         $r1 = $rank_dm1[$id] ?? '-';
                         $r2 = $rank_dm2[$id] ?? '-';
                         $r3 = $rank_dm3[$id] ?? '-';
                     ?>
                     <tr>
                         <td class="text-start ps-4 fw-light"><?= $alt['nama_wisata'] ?></td>
-                        <td>
-                            <div class="circle-rank <?= ($r1==1)?'top-1':''; ?>"><?= $r1 ?></div>
-                        </td>
-                        <td>
-                            <div class="circle-rank <?= ($r2==1)?'top-1':''; ?>"><?= $r2 ?></div>
-                        </td>
-                        <td>
-                            <div class="circle-rank <?= ($r3==1)?'top-1':''; ?>"><?= $r3 ?></div>
-                        </td>
+                        <td><div class="circle-rank <?= ($r1==1)?'top-1':''; ?>"><?= $r1 ?></div></td>
+                        <td><div class="circle-rank <?= ($r2==1)?'top-1':''; ?>"><?= $r2 ?></div></td>
+                        <td><div class="circle-rank <?= ($r3==1)?'top-1':''; ?>"><?= $r3 ?></div></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -266,7 +283,7 @@ $jumlah_alternatif = count($data_alternatif);
     </div>
 </div>
 
-<?php if($is_completed): ?>
+<?php if($is_completed && $is_vip): ?>
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3">
         <h6 class="fw-bold text-dark mb-0">Hasil Keputusan Kelompok (Borda Count)</h6>
@@ -286,39 +303,15 @@ $jumlah_alternatif = count($data_alternatif);
                 </thead>
                 <tbody>
                     <?php 
-                    // HITUNG POIN BORDA
-                    // Rumus: Poin = (Jumlah Alternatif - Ranking + 1)
-                    // Misal 5 Alt: Rank 1 = 5 Poin, Rank 5 = 1 Poin.
-                    
-                    $borda_scores = [];
-                    foreach($data_alternatif as $id => $alt){
-                        $p1 = isset($rank_dm1[$id]) ? ($jumlah_alternatif - $rank_dm1[$id] + 1) : 0;
-                        $p2 = isset($rank_dm2[$id]) ? ($jumlah_alternatif - $rank_dm2[$id] + 1) : 0;
-                        $p3 = isset($rank_dm3[$id]) ? ($jumlah_alternatif - $rank_dm3[$id] + 1) : 0;
-                        $total = $p1 + $p2 + $p3;
-                        
-                        $borda_scores[] = [
-                            'nama' => $alt['nama_wisata'],
-                            'p1' => $p1, 'p2' => $p2, 'p3' => $p3,
-                            'total' => $total
-                        ];
-                    }
-
-                    // Sorting Ranking Borda (Total Poin Tertinggi di Atas)
-                    usort($borda_scores, function($a, $b) {
-                        return $b['total'] <=> $a['total'];
-                    });
-
-                    // Tampilkan Tabel
                     $final_rank = 1;
-                    foreach($borda_scores as $res):
+                    foreach($data_alternatif as $res): 
                     ?>
                     <tr>
-                        <td class="text-start ps-4 fw-light text-dark"><?= $res['nama'] ?></td>
-                        <td class="text-muted small"><?= $res['p1'] ?> Poin</td>
-                        <td class="text-muted small"><?= $res['p2'] ?> Poin</td>
-                        <td class="text-muted small"><?= $res['p3'] ?> Poin</td>
-                        <td class="fw-light fs-5 text-primary bg-light"><?= $res['total'] ?></td>
+                        <td class="text-start ps-4 fw-light text-dark"><?= $res['nama_wisata'] ?></td>
+                        <td class="text-muted small"><?= $res['poin_dm1'] ?> Poin</td>
+                        <td class="text-muted small"><?= $res['poin_dm2'] ?> Poin</td>
+                        <td class="text-muted small"><?= $res['poin_dm3'] ?> Poin</td>
+                        <td class="fw-light fs-5 text-primary bg-light"><?= $res['total_poin'] ?></td>
                         <td>
                             <?php if($final_rank == 1): ?>
                                 <span class="badge badge-rank-final">Rank 1 🏆</span>

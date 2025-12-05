@@ -158,25 +158,29 @@
     .custom-options {
         position: absolute;
         display: block;
-        top: 110%; left: 0; right: 0;
+        
         background: #fff;
         border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
         border: 1px solid #f3f4f6;
-        z-index: 99;
+        z-index: 9999;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
         transform: translateY(-10px);
-        transition: all 0.2s ease;
+        transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
         max-height: 200px;
         overflow-y: auto;
     }
 
     .custom-select-wrapper.open .custom-options {
-        opacity: 1; visibility: visible; pointer-events: all; transform: translateY(0);
+        opacity: 1; 
+        visibility: visible; 
+        pointer-events: all; 
+        
+        /* Posisi akhir: Normal */
+        transform: translateY(0) scale(1);
     }
-
     .custom-option {
         padding: 10px 15px;
         font-size: 0.9rem;
@@ -218,41 +222,14 @@
 </div>
 
 <form action="process/simpan_penilaian.php" method="POST">
-    
-    <div class="card-section">
-        <h6 class="fw-light mb-3 text-dark">1. Input Bobot Kriteria</h6>
-        <p class="text-muted small mb-4">Tentukan tingkat kepentingan setiap kriteria (Total harus 1.0 atau 100%)</p>
 
-        <div class="row g-4">
-            <?php
-            // PHP LOGIC ASLI (JANGAN DIUBAH)
-            $queryKriteria = mysqli_query($conn, "SELECT * FROM kriteria");
-            while($k = mysqli_fetch_array($queryKriteria)) {
-            ?>
-            <div class="col-md-6 col-lg-6"> <label class="form-label d-flex align-items-center fw-light text-dark mb-2">
-                    <?= $k['nama_kriteria'] ?> 
-                    <span class="badge-attr <?= ($k['atribut']=='cost')?'badge-cost':'badge-benefit'; ?>">
-                        <?= ucfirst($k['atribut']) ?>
-                    </span>
-                </label>
-                <input type="number" step="0.01" name="bobot[<?= $k['id_kriteria'] ?>]" 
-                       class="form-control input-soft bobot-input" 
-                       placeholder="0.0" required>
-            </div>
-            <?php } ?>
-        </div>
-
-        <div class="total-bobot-bar">
-            <span>Total Bobot:</span>
-            <span class="d-flex align-items-center">
-                <span id="total-value">0.00</span> 
-                <i class="bi bi-exclamation-circle-fill ms-2 text-warning" id="total-icon"></i>
-            </span>
-        </div>
-    </div>
+    <?php
+    // PENTING: Query ini dipindahkan ke sini agar terbaca oleh tabel di bawah
+    $queryKriteria = mysqli_query($conn, "SELECT * FROM kriteria");
+    ?>
 
     <div class="card-section">
-        <h6 class="fw-light mb-2 text-dark">2. Matriks Penilaian (Skala Likert 1-5)</h6>
+        <h6 class="fw-light mb-2 text-dark">Matriks Penilaian (Skala Likert 1-5)</h6>
         <p class="text-muted small mb-3">Berikan penilaian untuk setiap alternatif pada masing-masing kriteria</p>
 
         <div class="mb-4">
@@ -269,7 +246,8 @@
                     <tr>
                         <th>Alternatif</th>
                         <?php 
-                        mysqli_data_seek($queryKriteria, 0); 
+                        // Loop header tabel
+                        // Tidak perlu mysqli_data_seek di sini karena ini loop pertama
                         while($k = mysqli_fetch_array($queryKriteria)) { 
                             echo "<th>{$k['nama_kriteria']}</th>"; 
                         } 
@@ -287,12 +265,13 @@
                             <div class="text-muted fw-normal small" style="font-size: 0.75rem;"><?= $a['lokasi'] ?? '-' ?></div>
                         </td>
                         <?php 
+                        // Reset pointer kriteria ke awal untuk setiap baris alternatif
                         mysqli_data_seek($queryKriteria, 0);
                         while($k = mysqli_fetch_array($queryKriteria)) { 
                         ?>
                         <td>
                             <select name="nilai[<?= $a['id_alternatif'] ?>][<?= $k['id_kriteria'] ?>]" class="form-select select-custom">
-                            <option value="1">1 - Sangat Buruk</option>    
+                                <option value="1">1 - Sangat Buruk</option>    
                                 <option value="2">2 - Buruk</option>
                                 <option value="3">3 - Cukup</option>
                                 <option value="4">4 - Baik</option>
@@ -306,11 +285,9 @@
             </table>
         </div>
     </div>
-
-    <div class="d-flex justify-content-end mb-5">
-        <button type="submit" class="btn btn-orange">
-            Simpan & Hitung TOPSIS
-        </button>
+    
+    <div class="text-end mt-3">
+        <button type="submit" class="btn btn-primary">Simpan Penilaian</button>
     </div>
 
 </form>
@@ -379,68 +356,84 @@ document.addEventListener("DOMContentLoaded", function() {
         // 2. Buat Trigger (Tampilan Awal)
         const trigger = document.createElement('div');
         trigger.classList.add('custom-select-trigger');
-        // Ambil teks dari option yang sedang terpilih (selected)
         trigger.textContent = select.options[select.selectedIndex].text;
         
         // 3. Buat Container Options
         const optionsContainer = document.createElement('div');
         optionsContainer.classList.add('custom-options');
 
-        // 4. Loop setiap <option> di select asli untuk dibuat versi cantiknya
+        // 4. Loop options
         Array.from(select.options).forEach(option => {
             const customOption = document.createElement('div');
             customOption.classList.add('custom-option');
             customOption.dataset.value = option.value;
             customOption.textContent = option.text;
 
-            // Jika option ini terpilih di awal
             if (option.selected) {
                 customOption.classList.add('selected');
             }
 
             // EVENT KLIK PADA OPSI
-            customOption.addEventListener('click', function() {
-                // Update tampilan trigger
+            customOption.addEventListener('click', function(e) {
+                // Update trigger text
                 trigger.textContent = this.textContent;
                 
-                // Update select ASLI di belakang layar
+                // Update select ASLI
                 select.value = this.dataset.value;
+                select.dispatchEvent(new Event('change')); 
                 
-                // Reset kelas selected
+                // Reset visual selected
                 optionsContainer.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
                 this.classList.add('selected');
                 
                 // Tutup dropdown
                 wrapper.classList.remove('open');
+                e.stopPropagation();
             });
 
             optionsContainer.appendChild(customOption);
         });
 
-        // Masukkan elemen ke DOM
+        // Rakit elemen
         wrapper.appendChild(trigger);
         wrapper.appendChild(optionsContainer);
-        
-        // Sisipkan wrapper SETELAH select asli
         select.parentNode.insertBefore(wrapper, select.nextSibling);
 
-        // EVENT BUKA TUTUP DROPDOWN
+        // --- EVENT BUKA TUTUP ---
         trigger.addEventListener('click', function(e) {
-            // Tutup dropdown lain jika ada yang terbuka
-            document.querySelectorAll('.custom-select-wrapper').forEach(w => {
-                if (w !== wrapper) w.classList.remove('open');
-            });
-            wrapper.classList.toggle('open');
-            e.stopPropagation(); // Mencegah event bubbling ke window
+            e.stopPropagation(); // Stop event bubbling
+
+            // 1. Cek apakah mau buka atau tutup
+            const isOpen = wrapper.classList.contains('open');
+
+            // 2. Tutup semua dropdown lain dulu
+            document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+
+            if (!isOpen) {
+                // 3. Hitung Posisi (Positioning)
+                const rect = wrapper.getBoundingClientRect();
+                
+                // 4. Set Posisi FIXED (Supaya tidak kepotong tabel)
+                optionsContainer.style.position = 'fixed';
+                optionsContainer.style.top = (rect.bottom + 5) + 'px'; 
+                optionsContainer.style.left = rect.left + 'px';
+                optionsContainer.style.width = rect.width + 'px';
+                optionsContainer.style.zIndex = '9999'; 
+                
+                wrapper.classList.add('open');
+            } else {
+                wrapper.classList.remove('open');
+            }
         });
     });
 
-    // Event Klik di luar untuk menutup dropdown
+    // Event Klik di luar untuk menutup (TETAP ADA)
     window.addEventListener('click', function() {
         document.querySelectorAll('.custom-select-wrapper').forEach(wrapper => {
             wrapper.classList.remove('open');
         });
     });
 
+    // BAGIAN SCROLL LISTENER SAYA HAPUS AGAR TIDAK ILANG-ILANGAN
 });
 </script>
