@@ -58,7 +58,7 @@ foreach($alternatif as $id_a => $a){
         $matriks_r[$id_a][$id_k] = $r;
         
         // Y
-        $w = $bobot[$id_k] ?? 0;
+        $w = (!empty($bobot[$id_k])) ? $bobot[$id_k] : 1; 
         $matriks_y[$id_a][$id_k] = $r * $w;
     }
 }

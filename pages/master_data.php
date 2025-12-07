@@ -1,10 +1,18 @@
 <?php
-// Proteksi: Hanya Admin
-if($_SESSION['role'] != 'admin'){
-    echo "<script>alert('Akses ditolak!'); window.location='index.php';</script>";
+
+if (!isset($_SESSION['role'])) {
+    echo "<script>alert('Silakan login terlebih dahulu!'); window.location='login.php';</script>";
     exit;
 }
 
+$akses_diizinkan = ['admin', 'kadispar', 'phri', 'akademisi'];
+
+
+if (!in_array($_SESSION['role'], $akses_diizinkan)) {
+    
+    echo "<script>alert('Akses ditolak! Anda tidak memiliki izin mengakses halaman ini.'); window.location='index.php?page=dashboard';</script>";
+    exit;
+}
 // --- LOGIKA PHP (CRUD - TIDAK BERUBAH) ---
 if(isset($_POST['tambah_alternatif'])){
     $nama = $_POST['nama_wisata'];

@@ -5,9 +5,13 @@
 $total_dm_required = 3; 
 $qCek = mysqli_query($conn, "SELECT DISTINCT id_user FROM penilaian");
 $dm_selesai = mysqli_num_rows($qCek);
-$is_completed = ($dm_selesai >= $total_dm_required);
 
-// B. Fungsi Helper TOPSIS
+// MODIFIKASI: Pisahkan status "Siap" dan "Tampil"
+$is_ready = ($dm_selesai >= $total_dm_required); // Data sudah 3 orang (Siap hitung)
+$is_clicked = (isset($_GET['act']) && $_GET['act'] == 'run'); // Tombol diklik
+$show_result = ($is_ready && $is_clicked); // Tampilkan HANYA jika Siap DAN Diklik
+
+// B. Fungsi Helper TOPSIS (TIDAK DIUBAH)
 function getTopsisRanking($conn, $role) {
     $qUser = mysqli_query($conn, "SELECT id_user FROM users WHERE role='$role'");
     $uData = mysqli_fetch_assoc($qUser);
@@ -69,7 +73,7 @@ $rank_dm1 = getTopsisRanking($conn, 'kadispar');
 $rank_dm2 = getTopsisRanking($conn, 'phri');
 $rank_dm3 = getTopsisRanking($conn, 'akademisi');
 
-// D. PROSES DATA
+// D. PROSES DATA (Borda)
 $data_alternatif = [];
 $qAlt = mysqli_query($conn, "SELECT * FROM alternatif");
 $jumlah_alternatif = mysqli_num_rows($qAlt);
@@ -98,25 +102,23 @@ uasort($data_alternatif, function($a, $b) {
 
 // --- E. CEK HAK AKSES ---
 $role_sekarang = strtolower($_SESSION['role'] ?? ''); 
-// Hanya Admin & Kadispar yang punya akses "Eksekutif" (Tombol & Hasil Akhir)
 $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
 ?>
 <style>
     /* Style Khusus Header Ungu Soft */
     .header-soft-purple {
-        background-color: #fdf4ff; /* Latar belakang ungu sangat muda (hampir putih) */
+        background-color: #fdf4ff; /* Latar belakang ungu sangat muda */
         border-bottom: 2px solid #e9d5ff; /* Garis bawah ungu soft */
         color: #7e22ce; /* Teks Ungu Tua */
         padding: 20px 25px;
-        font-weight: 500; /* Font tidak terlalu tebal */
+        font-weight: 500;
         font-size: 1.1rem;
         display: flex;
         align-items: center;
-        gap: 12px; /* Jarak antara ikon dan teks */
-        border-radius: 12px 12px 0 0; /* Lengkungan sudut atas */
+        gap: 12px;
+        border-radius: 12px 12px 0 0;
     }
 
-    /* Ukuran Icon */
     .header-soft-purple i {
         font-size: 1.5rem;
         line-height: 1;
@@ -133,7 +135,6 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
         overflow: hidden;
     }
     
-    /* Background Pattern dots (hiasan) */
     .hero-consensus::before {
         content: '';
         position: absolute;
@@ -153,6 +154,19 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
         align-items: center;
         justify-content: space-between;
     }
+    
+    /* Alert Box Ready (Biru) - BARU */
+    .alert-ready {
+        background-color: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
     .icon-waiting {
         width: 40px; height: 40px;
         background: #f97316;
@@ -163,9 +177,8 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
         margin-right: 15px;
     }
 
-    /* Table Styling Comparison */
     .table-compare thead th {
-        background-color: #a855f7; /* Ungu Header */
+        background-color: #a855f7;
         color: white;
         border: none;
         padding: 15px;
@@ -174,7 +187,6 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
         letter-spacing: 0.5px;
     }
     
-    /* Lingkaran Ranking (1, 2, 3) */
     .circle-rank {
         width: 30px; height: 30px;
         border-radius: 50%;
@@ -187,9 +199,8 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
     }
     .circle-rank.top-1 { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
     
-    /* Tabel Hasil Akhir (Borda) */
     .table-borda thead th {
-        background-color: #f3f4f6; /* Abu-abu */
+        background-color: #f3f4f6;
         color: #4b5563;
         font-weight: 700;
         text-transform: uppercase;
@@ -202,7 +213,26 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
         border-radius: 20px;
         font-size: 0.85rem;
     }
+    
+    /* STYLE BARU: Kartu Kesimpulan */
+    .conclusion-card {
+        background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);
+        border: 2px solid #fbbf24;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+    }
+    .conclusion-icon {
+        background: #fbbf24;
+        color: #78350f;
+        width: 60px; height: 60px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.8rem;
+        box-shadow: 0 4px 10px rgba(251, 191, 36, 0.4);
+    }
 </style>
+
 <div class="hero-consensus">
     <div style="position: relative; z-index: 2;">
         <h3 class="fw-bold mb-1"><i class="bi bi-people-fill me-2"></i> Hasil Keputusan Kelompok</h3>
@@ -210,7 +240,7 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
     </div>
 </div>
 
-<?php if(!$is_completed): ?>
+<?php if(!$is_ready): ?>
     <div class="alert-waiting mb-4">
         <div class="d-flex align-items-center">
             <div class="icon-waiting"><i class="bi bi-exclamation-lg"></i></div>
@@ -225,21 +255,40 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
         <?php endif; ?>
     </div>
 
+<?php elseif($is_ready && !$show_result): ?>
+    <div class="alert-ready mb-4">
+        <div class="d-flex align-items-center">
+            <div class="icon-waiting" style="background: #3b82f6;"><i class="bi bi-check-lg"></i></div>
+            <div>
+                <h6 class="fw-bold mb-1">Data Penilaian Lengkap!</h6>
+                <small>Seluruh DM telah memberikan penilaian. Sistem siap melakukan perhitungan.</small>
+            </div>
+        </div>
+        
+        <?php if($is_vip): ?>
+            <a href="index.php?page=konsensus&act=run" class="btn btn-primary fw-bold px-4 shadow-sm">
+                <i class="bi bi-play-fill me-1"></i> Jalankan Konsensus
+            </a>
+        <?php else: ?>
+             <button class="btn btn-secondary" disabled>Menunggu Eksekusi Admin/Kadispar</button>
+        <?php endif; ?>
+    </div>
+
 <?php else: ?>
     <?php if($is_vip): ?>
         <div class="alert alert-success d-flex align-items-center mb-4 border-0 shadow-sm" role="alert">
             <i class="bi bi-check-circle-fill fs-4 me-3 text-success"></i>
             <div>
-                <strong>Semua DM telah menilai!</strong><br>
-                Perhitungan Borda Count telah dijalankan. Lihat hasil di bawah.
+                <strong>Perhitungan Selesai!</strong><br>
+                Borda Count berhasil dijalankan. Hasil keputusan kelompok ada di bawah.
             </div>
         </div>
     <?php else: ?>
         <div class="alert alert-info-custom d-flex align-items-center mb-4 border-0 shadow-sm" role="alert">
             <i class="bi bi-info-circle-fill fs-4 me-3 text-primary"></i>
             <div>
-                <strong>Penilaian Selesai.</strong><br>
-                Hasil konsensus akhir sedang ditinjau oleh Kadispar & Admin.
+                <strong>Keputusan Final.</strong><br>
+                Hasil konsensus akhir telah ditetapkan.
             </div>
         </div>
     <?php endif; ?>
@@ -283,8 +332,8 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
     </div>
 </div>
 
-<?php if($is_completed && $is_vip): ?>
-<div class="card border-0 shadow-sm">
+<?php if($show_result && $is_vip): ?>
+<div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3">
         <h6 class="fw-bold text-dark mb-0">Hasil Keputusan Kelompok (Borda Count)</h6>
     </div>
@@ -323,6 +372,47 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
                     <?php $final_rank++; endforeach; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<?php
+// Logika menentukan Alasan
+// 1. Ambil Juara 1
+$juara = reset($data_alternatif); // Ambil elemen pertama (sudah di-sort)
+$id_juara = $juara['id_alternatif'];
+
+// 2. Cek apakah dia Rank 1 di masing-masing DM?
+$count_rank1 = 0;
+if(($rank_dm1[$id_juara]??0) == 1) $count_rank1++;
+if(($rank_dm2[$id_juara]??0) == 1) $count_rank1++;
+if(($rank_dm3[$id_juara]??0) == 1) $count_rank1++;
+
+// 3. Buat Kalimat Alasan
+$alasan = "";
+if($count_rank1 == 3) {
+    $alasan = "Destinasi ini menjadi <strong>pilihan mutlak (Peringkat 1)</strong> dari seluruh pengambil keputusan (Dinas Pariwisata, PHRI, dan Akademisi), sehingga menjadi rekomendasi yang paling kuat dan tidak terbantahkan.";
+} elseif($count_rank1 >= 1) {
+    $alasan = "Destinasi ini berhasil mengumpulkan total poin tertinggi karena mendapatkan peringkat teratas dari sebagian besar pengambil keputusan dan memiliki performa yang stabil di penilaian lainnya.";
+} else {
+    $alasan = "Meskipun tidak selalu menjadi juara 1 di penilaian individu, destinasi ini memiliki <strong>konsistensi nilai tertinggi</strong> secara rata-rata (konsensus) dibandingkan alternatif lain, menjadikannya jalan tengah terbaik.";
+}
+?>
+
+<div class="conclusion-card p-4">
+    <div class="d-flex align-items-start gap-4">
+        <div class="conclusion-icon flex-shrink-0">
+            <i class="bi bi-trophy-fill"></i>
+        </div>
+        <div>
+            <h5 class="fw-bold text-dark mb-2">Rekomendasi Terbaik: <span class="text-primary"><?= $juara['nama_wisata'] ?></span></h5>
+            <p class="text-muted mb-2">
+                Berdasarkan hasil perhitungan metode Borda Count dengan total perolehan <strong><?= $juara['total_poin'] ?> Poin</strong>.
+            </p>
+            <div class="p-3 bg-white rounded border border-warning-subtle">
+                <strong class="d-block mb-1 text-warning-emphasis"><i class="bi bi-lightbulb me-1"></i> Alasan Rekomendasi:</strong>
+                <span class="text-secondary small" style="line-height: 1.6;"><?= $alasan ?></span>
+            </div>
         </div>
     </div>
 </div>

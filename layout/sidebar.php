@@ -35,13 +35,23 @@
             </a>
         </li>
 
-        <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+        <?php 
+        if(isset($_SESSION['role']) && (
+            $_SESSION['role'] == 'admin' || 
+            $_SESSION['role'] == 'kadispar' || 
+            $_SESSION['role'] == 'phri' || 
+            $_SESSION['role'] == 'akademisi'
+        )): 
+        ?>
         <li class="nav-item">
             <a class="nav-link-custom <?php echo (isset($_GET['page']) && $_GET['page']=='master_data') ? 'active' : ''; ?>" href="index.php?page=master_data">
                 <i class="bi bi-database"></i>
                 <span>Data Master</span>
             </a>
         </li>
+        <?php endif; ?>
+
+        <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
         <li class="nav-item">
             <a class="nav-link-custom <?php echo (isset($_GET['page']) && $_GET['page']=='pengaturan_bobot') ? 'active' : ''; ?>" href="index.php?page=pengaturan_bobot">
                 <i class="bi bi-sliders"></i>

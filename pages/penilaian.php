@@ -181,6 +181,12 @@
         /* Posisi akhir: Normal */
         transform: translateY(0) scale(1);
     }
+    /* Tambahan agar bisa di-Tab dan terlihat fokusnya */
+    .custom-select-trigger:focus {
+        border-color: #a855f7; /* Warna Ungu sesuai tema */
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
+    }
     .custom-option {
         padding: 10px 15px;
         font-size: 0.9rem;
@@ -358,6 +364,9 @@ document.addEventListener("DOMContentLoaded", function() {
         trigger.classList.add('custom-select-trigger');
         trigger.textContent = select.options[select.selectedIndex].text;
         
+        // [BARU] Agar bisa di-focus pakai Keyboard (Tab)
+        trigger.setAttribute('tabindex', '0'); 
+        
         // 3. Buat Container Options
         const optionsContainer = document.createElement('div');
         optionsContainer.classList.add('custom-options');
@@ -375,16 +384,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             // EVENT KLIK PADA OPSI
             customOption.addEventListener('click', function(e) {
-                // Update trigger text
-                trigger.textContent = this.textContent;
-                
-                // Update select ASLI
-                select.value = this.dataset.value;
-                select.dispatchEvent(new Event('change')); 
-                
-                // Reset visual selected
-                optionsContainer.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
-                this.classList.add('selected');
+                updateSelection(this.dataset.value, this.textContent);
                 
                 // Tutup dropdown
                 wrapper.classList.remove('open');
@@ -399,7 +399,44 @@ document.addEventListener("DOMContentLoaded", function() {
         wrapper.appendChild(optionsContainer);
         select.parentNode.insertBefore(wrapper, select.nextSibling);
 
-        // --- EVENT BUKA TUTUP ---
+        // --- FUNGSI UPDATE NILAI (Dipisah agar bisa dipanggil Keyboard & Mouse) ---
+        function updateSelection(value, text) {
+            // Update trigger text
+            trigger.textContent = text;
+            
+            // Update select ASLI
+            select.value = value;
+            select.dispatchEvent(new Event('change')); 
+            
+            // Reset visual selected di dropdown custom
+            optionsContainer.querySelectorAll('.custom-option').forEach(opt => {
+                if (opt.dataset.value == value) {
+                    opt.classList.add('selected');
+                } else {
+                    opt.classList.remove('selected');
+                }
+            });
+        }
+
+        // --- [BARU] EVENT KEYBOARD (1-5) ---
+        trigger.addEventListener('keydown', function(e) {
+            // Cek apakah tombol yang ditekan adalah 1, 2, 3, 4, atau 5
+            if (['1', '2', '3', '4', '5'].includes(e.key)) {
+                e.preventDefault(); // Mencegah scrolling halaman jika ada
+                
+                // Cari text yang sesuai dengan nilai ini dari select asli
+                // (Misal: user tekan 5, kita cari teks "5 - Sangat Baik")
+                let textToDisplay = "";
+                Array.from(select.options).forEach(opt => {
+                    if(opt.value === e.key) textToDisplay = opt.text;
+                });
+
+                // Jalankan update
+                updateSelection(e.key, textToDisplay);
+            }
+        });
+
+        // --- EVENT BUKA TUTUP (MOUSE) ---
         trigger.addEventListener('click', function(e) {
             e.stopPropagation(); // Stop event bubbling
 
@@ -433,7 +470,5 @@ document.addEventListener("DOMContentLoaded", function() {
             wrapper.classList.remove('open');
         });
     });
-
-    // BAGIAN SCROLL LISTENER SAYA HAPUS AGAR TIDAK ILANG-ILANGAN
 });
 </script>
