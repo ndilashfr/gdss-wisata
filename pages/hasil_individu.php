@@ -1,16 +1,49 @@
 <?php
-// --- 1. LOGIKA PHP: PERHITUNGAN TOPSIS ---
-$id_user = $_SESSION['user_id'];
+// --- 1. SETUP & LOGIKA PILIH USER (KHUSUS KADISPAR) ---
+$my_id = $_SESSION['user_id'];
+$my_role = strtolower($_SESSION['role'] ?? '');
 
-// Cek apakah user sudah menilai
+// Default: Hitung untuk diri sendiri
+$target_id_user = $my_id; 
+$target_role_name = "Penilaian Anda"; // Judul default
+
+// LIST USER LAIN (Hanya diproses jika yang login KADISPAR)
+$list_dm = [];
+if ($my_role == 'kadispar') {
+    // Ambil data user DM lain (Kadispar, PHRI, Akademisi)
+    $qDM = mysqli_query($conn, "SELECT id_user, role, username FROM users WHERE role IN ('kadispar', 'phri', 'akademisi')");
+    while($r = mysqli_fetch_assoc($qDM)){
+        $list_dm[$r['role']] = $r; // Simpan dengan key role
+    }
+
+    // Cek apakah Kadispar mengklik tab user lain?
+    if (isset($_GET['view_role']) && isset($list_dm[$_GET['view_role']])) {
+        $target_id_user = $list_dm[$_GET['view_role']]['id_user'];
+        $target_role_name = "Penilaian " . ucfirst($_GET['view_role']);
+    }
+}
+
+// --- VARIABEL UTAMA YANG AKAN DIPAKAI RUMUS DI BAWAH ---
+// Kita override $id_user agar rumus menghitung berdasarkan target yang dipilih
+$id_user = $target_id_user; 
+
+// Cek apakah user (target) sudah menilai
 $cek = mysqli_query($conn, "SELECT * FROM penilaian WHERE id_user = '$id_user'");
 if(mysqli_num_rows($cek) == 0){
+    // Pesan Error Dinamis
+    $siapa = ($id_user == $my_id) ? "Anda" : "User " . ucfirst($_GET['view_role'] ?? 'Terkait');
     echo "<div class='alert alert-warning py-5 text-center'>
             <i class='bi bi-exclamation-circle fs-1 d-block mb-3'></i>
-            <h5>Anda belum melakukan penilaian.</h5>
-            <p>Silakan input penilaian terlebih dahulu pada menu Penilaian Saya.</p>
-            <a href='index.php?page=penilaian' class='btn btn-primary mt-2'>Input Penilaian</a>
-          </div>";
+            <h5>Data Belum Tersedia.</h5>
+            <p>$siapa belum melakukan penilaian.</p>";
+    
+    // Tombol kembali jika sedang melihat orang lain
+    if($id_user != $my_id) {
+        echo "<a href='index.php?page=hasil_individu' class='btn btn-secondary mt-2'>Kembali ke Data Saya</a>";
+    } else {
+        echo "<a href='index.php?page=penilaian' class='btn btn-primary mt-2'>Input Penilaian</a>";
+    }
+    echo "</div>";
     return; // Stop script
 }
 
@@ -299,9 +332,146 @@ usort($hasil_akhir, function($a, $b) {
 </style>
 
 <div class="mb-4">
-    <h3 class="fw-light mb-1">Hasil Perhitungan Individual</h3>
-    <p class="text-muted">Hasil perhitungan metode TOPSIS untuk penilaian Anda</p>
+<?php if($my_role == 'kadispar'): ?>
+<style>
+    /* 1. Style Panel Toolbar Admin (Modern Card) */
+    .admin-toolbar {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 15px 25px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03); /* Bayangan sangat halus */
+        border: 1px solid #f1f5f9;
+        margin-bottom: 25px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    /* Aksen Garis Kiri (Ungu-Pink Gradient) */
+    .admin-toolbar::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 5px;
+        background: linear-gradient(to bottom, #8b5cf6, #ec4899); 
+    }
+
+    /* Teks Label Toolbar */
+    .toolbar-info h6 {
+        font-weight: 700;
+        color: #334155;
+        margin: 0;
+        font-size: 1rem;
+    }
+    .toolbar-info p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #94a3b8;
+    }
+
+    /* 2. Container Tombol Pill (Background Abu) */
+    .switch-container {
+        background: #f8fafc;
+        padding: 4px;
+        border-radius: 50px; /* Pill Shape */
+        border: 1px solid #e2e8f0;
+        display: inline-flex;
+    }
+
+    /* Tombol Pill Item */
+    .btn-pill {
+        border: none;
+        background: transparent;
+        padding: 8px 18px;
+        border-radius: 40px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: flex; align-items: center; gap: 6px;
+    }
+
+    .btn-pill:hover {
+        color: #333;
+        background: rgba(0,0,0,0.03);
+    }
+
+    /* State Aktif (Putih + Shadow) */
+    .btn-pill.active {
+        background: #ffffff;
+        color: #8b5cf6; /* Ungu Utama */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* 3. Badge Mode Intip */
+    .badge-spy {
+        background: #fffbeb;
+        color: #d97706;
+        border: 1px solid #fcd34d;
+        font-size: 0.75rem;
+        padding: 6px 14px;
+        border-radius: 30px;
+        display: inline-flex; align-items: center; gap: 6px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+</style>
+
+<div class="admin-toolbar">
+    <div class="toolbar-info ps-2">
+        <h6>View Controller</h6>
+        <p>Ganti tampilan untuk melihat hasil penilaian user lain.</p>
+    </div>
+
+    <div class="switch-container">
+        <?php $view = $_GET['view_role'] ?? 'kadispar'; ?>
+        
+        <a href="index.php?page=hasil_individu&view_role=kadispar" 
+           class="btn-pill <?= ($view=='kadispar') ? 'active' : '' ?>">
+            <i class="bi bi-person-fill"></i> Kadispar
+        </a>
+        
+        <a href="index.php?page=hasil_individu&view_role=phri" 
+           class="btn-pill <?= ($view=='phri') ? 'active' : '' ?>">
+            <i class="bi bi-building"></i> PHRI
+        </a>
+        
+        <a href="index.php?page=hasil_individu&view_role=akademisi" 
+           class="btn-pill <?= ($view=='akademisi') ? 'active' : '' ?>">
+            <i class="bi bi-mortarboard-fill"></i> Akademisi
+        </a>
+    </div>
 </div>
+<?php endif; ?>
+
+<div class="d-flex align-items-end justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <?php 
+                if($id_user == $my_id) {
+                    echo "Hasil Penilaian Anda";
+                } else {
+                    echo "Hasil Penilaian " . ucfirst($_GET['view_role'] ?? 'User Lain');
+                }
+            ?>
+        </h3>
+        <p class="text-muted mb-0 small">
+            Detail perhitungan metode TOPSIS berdasarkan bobot dan input user terpilih.
+        </p>
+    </div>
+
+    <?php if($id_user != $my_id): ?>
+        <div class="badge-spy mb-2">
+            <i class="bi bi-eye"></i> Mode Pratinjau
+        </div>
+    <?php endif; ?>
+</div>
+    </div>
 
 <div class="ranking-wrapper">
     <div class="ranking-header">

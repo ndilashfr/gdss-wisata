@@ -1,4 +1,9 @@
 <?php
+// --- 0. CEK HAK AKSES (WAJIB DITARUH PALING ATAS) ---
+// Kita harus definisikan dulu siapa yang login sebelum lanjut ke logika lain
+$role_sekarang = strtolower($_SESSION['role'] ?? ''); 
+$is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
+
 // --- 1. LOGIKA PHP: HITUNG & SORTING DI AWAL ---
 
 // A. Cek Status Penilaian
@@ -6,10 +11,20 @@ $total_dm_required = 3;
 $qCek = mysqli_query($conn, "SELECT DISTINCT id_user FROM penilaian");
 $dm_selesai = mysqli_num_rows($qCek);
 
-// MODIFIKASI: Pisahkan status "Siap" dan "Tampil"
-$is_ready = ($dm_selesai >= $total_dm_required); // Data sudah 3 orang (Siap hitung)
-$is_clicked = (isset($_GET['act']) && $_GET['act'] == 'run'); // Tombol diklik
-$show_result = ($is_ready && $is_clicked); // Tampilkan HANYA jika Siap DAN Diklik
+// MODIFIKASI LOGIKA TAMPIL:
+$is_ready = ($dm_selesai >= $total_dm_required); // Data sudah 3 orang (Siap)
+$is_clicked = (isset($_GET['act']) && $_GET['act'] == 'run'); // Tombol diklik (URL trigger)
+
+// LOGIKA PENENTUAN TAMPIL
+if ($is_vip) {
+    // KASUS 1: Jika KADISPAR/ADMIN (VIP)
+    // Hasil hanya muncul jika sudah SIAP DAN tombol 'Jalankan' sudah DIKLIK
+    $show_result = ($is_ready && $is_clicked); 
+} else {
+    // KASUS 2: Jika AKADEMISI/PHRI (Non-VIP)
+    // Hasil LANGSUNG muncul otomatis begitu data siap (tanpa perlu klik tombol)
+    $show_result = $is_ready; 
+}
 
 // B. Fungsi Helper TOPSIS (TIDAK DIUBAH)
 function getTopsisRanking($conn, $role) {
@@ -332,7 +347,7 @@ $is_vip = in_array($role_sekarang, ['admin', 'kadispar']);
     </div>
 </div>
 
-<?php if($show_result && $is_vip): ?>
+<?php if($show_result): ?>
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3">
         <h6 class="fw-bold text-dark mb-0">Hasil Keputusan Kelompok (Borda Count)</h6>
